@@ -1,6 +1,6 @@
 # 🎬 NEURAFLUX — AI Video Summarizer & Highlight Generator
 
-> Upload a raw video → get a **written summary** + an **auto-cut highlight reel**.  
+> **Upload a file** or **paste a video link** → get a written summary + an auto-cut highlight reel.  
 > Multi-modal AI pipeline: speech, scenes, LLM reasoning, and FFmpeg rendering in one flow.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -15,23 +15,27 @@
 
 | Step | Capability |
 |------|------------|
+| 📥 **Ingest** | **Upload** MP4/MOV/MKV **or paste** a YouTube / Vimeo / direct video URL |
 | 🎧 **Audio** | Extracts clean 16 kHz mono WAV with FFmpeg |
 | 🗣️ **Speech** | Transcribes with **faster-whisper** (timestamps) |
-| 🧩 **Structure** | Chunks transcript + detects / windows scenes |
+| 🧩 **Structure** | Chunks transcript + scene windows |
 | 🧠 **Summary** | LLM overview, key points, notable quotes |
 | ⭐ **Highlights** | Scores moments (motion · energy · salience) |
 | 🎞️ **Reel** | Renders a downloadable highlight MP4 |
+| 🎛️ **UI** | NEURAFLUX dashboard — live progress, compact one-screen layout |
 
-Built as a **portfolio Generative AI / multi-modal** project — not just chat over text, but real media processing + async jobs.
+Built as a **portfolio Generative AI / multi-modal** project — real media processing + async jobs, not just chat over text.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Upload (React / NEURAFLUX UI)
-   │
-   ▼
+NEURAFLUX UI (React)
+   ├─ Upload file
+   └─ Paste link (yt-dlp)
+          │
+          ▼
 FastAPI job pipeline
    ├─ 1. Audio extraction (FFmpeg)
    ├─ 2. Transcription (faster-whisper)
@@ -40,8 +44,8 @@ FastAPI job pipeline
    ├─ 5. LLM summarization (Anthropic / OpenAI)
    ├─ 6. Highlight scoring + selection
    └─ 7. Highlight reel render (FFmpeg)
-   │
-   ▼
+          │
+          ▼
 Results: summary · scene timeline · downloadable reel
          (+ live progress via WebSocket / polling)
 ```
@@ -57,7 +61,7 @@ Results: summary · scene timeline · downloadable reel
 | 🖥️ **Frontend** | React · Vite · TypeScript · Tailwind · Framer Motion · Lucide |
 | ⚙️ **Backend** | Python · FastAPI · SQLAlchemy · Background pipeline |
 | 🤖 **AI / ML** | faster-whisper · optional sentence-transformers · Anthropic / OpenAI |
-| 🎥 **Media** | FFmpeg · OpenCV / PySceneDetect (full mode) |
+| 🎥 **Media** | FFmpeg · **yt-dlp** (URL ingest) · OpenCV / PySceneDetect (full mode) |
 | 🗄️ **Database** | Supabase Postgres (`DATABASE_URL`) · SQLite locally |
 | ☁️ **Deploy** | **Vercel** (UI) · **Render** Docker (API + FFmpeg) |
 
@@ -184,9 +188,10 @@ pytest -m "not slow" -q
 
 ## 🎯 Product notes for demos
 
+- **Two ways in:** upload a file **or** paste a YouTube / Vimeo / direct video link  
 - Use clips **under ~2 minutes** with clear speech  
-- First job after a cold start may be slower (model warm-up)  
-- UI brand: **NEURAFLUX** — synthesis dashboard with live progress  
+- First job after a cold start may be slower (model warm-up) — ping `/health` before a live demo  
+- UI brand: **NEURAFLUX** — compact synthesis dashboard (fits one screen) with live progress  
 
 ---
 
