@@ -1,27 +1,24 @@
-/* Palette: charcoal base + electric teal accent (media/video product — not indigo defaults) */
+/* NEURAFLUX palette — charcoal base, cyan + violet accents (matched to product mock) */
 @import "tailwindcss";
 
 :root {
-  --bg: #0c1117;
-  --bg-elevated: #141b24;
-  --surface: #1a2330;
-  --text: #c5d0dc;
-  --text-h: #f0f4f8;
-  --muted: #7a8a9c;
-  --accent: #2dd4bf;
-  --accent-dim: #14b8a6;
+  --bg: #050508;
+  --bg-elevated: #0c0c12;
+  --surface: rgba(18, 18, 28, 0.72);
+  --surface-solid: #12121c;
+  --text: #c8c8d4;
+  --text-h: #f4f4f8;
+  --muted: #7a7a8c;
+  --cyan: #22d3ee;
+  --violet: #a855f7;
+  --violet-deep: #7c3aed;
+  --green: #4ade80;
   --danger: #f87171;
-  --border: #243041;
-  --font-sans: "DM Sans", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Outfit", "Segoe UI", system-ui, sans-serif;
-}
-
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: local("DM Sans");
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -36,19 +33,63 @@ body,
 
 body {
   margin: 0;
-  font-family: "DM Sans", var(--font-sans);
+  font-family: var(--font-sans);
   color: var(--text);
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(20, 184, 166, 0.06), transparent),
+    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(124, 58, 237, 0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 90% 10%, rgba(34, 211, 238, 0.1), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 70% 100%, rgba(168, 85, 247, 0.08), transparent 45%),
     var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
-h3 {
-  font-family: "Outfit", var(--font-display);
+h3,
+.font-serif {
+  font-family: var(--font-serif);
   color: var(--text-h);
-  font-weight: 600;
+  font-weight: 400;
+}
+
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.25);
+}
+
+.glow-violet {
+  box-shadow: 0 0 28px rgba(168, 85, 247, 0.35);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.wave-scroll {
+  animation: wave 8s linear infinite;
 }

@@ -13,15 +13,15 @@ export default function HighlightPlayer({ jobId, videoRef }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-        <h3 className="text-lg">Playback</h3>
+        <h3 className="font-serif text-xl text-[var(--text-h)]">Playback</h3>
         <div className="flex gap-2 text-xs">
           <button
             type="button"
             onClick={() => setMode('highlights')}
-            className={`px-3 py-1.5 border transition-colors ${
+            className={`rounded-full px-3 py-1.5 border transition-colors ${
               mode === 'highlights'
-                ? 'border-[var(--accent)] text-[var(--accent)]'
-                : 'border-[var(--border)] text-[var(--muted)]'
+                ? 'border-[var(--cyan)] text-[var(--cyan)] bg-[var(--cyan)]/10'
+                : 'border-white/10 text-[var(--muted)]'
             }`}
           >
             Watch highlights
@@ -29,21 +29,14 @@ export default function HighlightPlayer({ jobId, videoRef }: Props) {
           <button
             type="button"
             onClick={() => setMode('full')}
-            className={`px-3 py-1.5 border transition-colors ${
+            className={`rounded-full px-3 py-1.5 border transition-colors ${
               mode === 'full'
-                ? 'border-[var(--accent)] text-[var(--accent)]'
-                : 'border-[var(--border)] text-[var(--muted)]'
+                ? 'border-[var(--violet)] text-[#e9d5ff] bg-[var(--violet)]/15'
+                : 'border-white/10 text-[var(--muted)]'
             }`}
           >
             Watch full video
           </button>
-          <a
-            href={highlightReelUrl(jobId)}
-            download
-            className="px-3 py-1.5 bg-[var(--accent)] text-[var(--bg)] font-medium"
-          >
-            Download reel
-          </a>
         </div>
       </div>
       <video
@@ -51,7 +44,7 @@ export default function HighlightPlayer({ jobId, videoRef }: Props) {
         ref={videoRef}
         src={src}
         controls
-        className="w-full max-h-[420px] bg-black"
+        className="w-full max-h-[420px] rounded-2xl bg-black border border-[var(--border)]"
       />
     </div>
   )
