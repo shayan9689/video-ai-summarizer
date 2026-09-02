@@ -196,13 +196,18 @@ export default function VideoUpload() {
               </button>
             </div>
             <p className="mt-2 text-[11px] text-[var(--muted)]">
-              Works with YouTube, Vimeo, and many direct video links. Keep clips ≤ 2 minutes.
+              Best with Vimeo or a direct .mp4 link. YouTube often blocks cloud servers — if it
+              fails, download the clip and use <span className="text-[var(--text-h)]">Upload file</span>.
+              Keep clips ≤ 2 minutes.
             </p>
           </div>
         )}
 
         {error && (
-          <p className="mt-3 text-center text-sm text-[var(--danger)]" role="alert">
+          <p
+            className="mt-3 text-center text-sm text-[var(--danger)] max-w-xl mx-auto leading-relaxed"
+            role="alert"
+          >
             {error}
           </p>
         )}

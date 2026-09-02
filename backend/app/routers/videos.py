@@ -213,7 +213,10 @@ async def upload_from_url(
         shutil.rmtree(dest_dir, ignore_errors=True)
         raise HTTPException(
             status_code=400,
-            detail=f"Could not download this link. Try another URL or upload a file. ({exc})",
+            detail=(
+                "Could not download this link. YouTube often blocks cloud servers — "
+                "please upload the video file instead, or try Vimeo / a direct .mp4 URL."
+            ),
         ) from exc
 
     return _ingest_local_video(
