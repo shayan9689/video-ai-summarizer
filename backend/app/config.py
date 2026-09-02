@@ -65,7 +65,12 @@ class Settings(BaseSettings):
     @property
     def resolved_database_url(self) -> str:
         if self.database_url:
-            return self.database_url
+            url = self.database_url.strip()
+            # Supabase / managed Postgres require TLS from cloud hosts like Render
+            if url.startswith(("postgres://", "postgresql://")) and "sslmode=" not in url:
+                sep = "&" if "?" in url else "?"
+                url = f"{url}{sep}sslmode=require"
+            return url
         db_path = Path(self.storage_dir) / "jobs.db"
         return f"sqlite:///{db_path.as_posix()}"
 
