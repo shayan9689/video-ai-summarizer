@@ -1,4 +1,4 @@
-"""Speech-to-text via faster-whisper."""
+"""Speech-to-text via faster-whisper (speed-tuned for CPU demos)."""
 
 from __future__ import annotations
 
@@ -21,22 +21,35 @@ def get_whisper_model():
         settings = get_settings()
         size = settings.whisper_model_size
         logger.info("Loading faster-whisper model: %s", size)
-        # CPU + int8 is the portable default for local/dev (Render CPU instances)
         _model = WhisperModel(size, device="cpu", compute_type="int8")
     return _model
+
+
+def warmup_whisper() -> None:
+    """Load model into memory so the first job doesn't pay download latency mid-request."""
+    try:
+        get_whisper_model()
+        logger.info("Whisper warmup complete")
+    except Exception:  # noqa: BLE001
+        logger.exception("Whisper warmup failed (will retry on first job)")
 
 
 def transcribe_audio(audio_path: str | Path, model_size: str | None = None) -> list[dict]:
     """
     Transcribe audio to segment list: [{start, end, text}, ...].
-    Model is loaded once at module level (lazy) to avoid per-request reload cost.
+    Uses fast CPU settings (beam_size=1) to stay within a ~2–3 min pipeline budget.
     """
-    if model_size:
-        # Allow override for tests; still uses shared cache when size matches default
-        pass
-
+    _ = model_size
     model = get_whisper_model()
-    segments_iter, _info = model.transcribe(str(audio_path), word_timestamps=False)
+    segments_iter, _info = model.transcribe(
+        str(audio_path),
+        word_timestamps=False,
+        vad_filter=True,
+        beam_size=1,
+        best_of=1,
+        temperature=0.0,
+        condition_on_previous_text=False,
+    )
     segments: list[dict] = []
     for seg in segments_iter:
         text = (seg.text or "").strip()

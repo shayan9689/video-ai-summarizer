@@ -24,13 +24,28 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    import asyncio
+
     settings = get_settings()
     settings.storage_dir.mkdir(parents=True, exist_ok=True)
     (settings.storage_dir / "uploads").mkdir(parents=True, exist_ok=True)
     init_db()
     logger.info("Storage directory: %s", settings.storage_dir)
     logger.info("Database: %s", settings.resolved_database_url.split("@")[-1])
+    logger.info(
+        "Speed profile: whisper=%s light_mode=%s max_duration=%ss",
+        settings.whisper_model_size,
+        settings.light_mode,
+        settings.max_video_duration_seconds,
+    )
     verify_ffmpeg_installed(raise_on_missing=False)
+
+    if settings.warmup_whisper_on_startup:
+        from app.services.transcription import warmup_whisper
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, warmup_whisper)
+
     yield
 
 

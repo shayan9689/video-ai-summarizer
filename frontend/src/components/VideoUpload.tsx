@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { uploadVideo } from '../api/client'
 
 const ALLOWED = ['.mp4', '.mov', '.mkv']
-const MAX_MB = 500
+const MAX_MB = 80
 
 export default function VideoUpload() {
   const navigate = useNavigate()
@@ -81,7 +81,9 @@ export default function VideoUpload() {
         </p>
         <h2 className="text-2xl mb-2">Upload a clip to summarize</h2>
         <p className="text-[var(--muted)] text-sm mb-8">
-          MP4, MOV, or MKV · up to {MAX_MB}MB
+          MP4, MOV, or MKV · under 2 minutes · up to {MAX_MB}MB
+          <br />
+          <span className="text-[var(--accent)]">Typical turnaround: ~2–3 minutes</span>
         </p>
         <button
           type="button"

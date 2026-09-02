@@ -22,6 +22,30 @@ def extract_clip(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     duration = max(0.05, end - start)
+    settings = get_settings()
+
+    # Fast path: stream copy (seconds, not minutes of re-encode)
+    if settings.light_mode:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{start:.3f}",
+            "-i",
+            str(video_path),
+            "-t",
+            f"{duration:.3f}",
+            "-c",
+            "copy",
+            "-avoid_negative_ts",
+            "make_zero",
+            str(output_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=120)
+        if result.returncode == 0 and output_path.exists():
+            return output_path
+        logger.warning("Stream-copy clip failed; falling back to ultrafast re-encode")
+
     cmd = [
         "ffmpeg",
         "-y",
@@ -34,18 +58,18 @@ def extract_clip(
         "-c:v",
         "libx264",
         "-preset",
-        "veryfast",
+        "ultrafast",
         "-crf",
-        "23",
+        "28",
         "-c:a",
         "aac",
         "-b:a",
-        "128k",
+        "96k",
         "-movflags",
         "+faststart",
         str(output_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=600)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=300)
     if result.returncode != 0 or not output_path.exists():
         raise RuntimeError(f"Clip extraction failed [{start}-{end}]: {result.stderr[-400:]}")
     return output_path
@@ -56,12 +80,6 @@ def concatenate_clips(
     output_path: str | Path,
     transition: str = "cut",
 ) -> Path:
-    """
-    Concatenate clips with ffmpeg concat demuxer.
-
-    transition='cut' (hard cut) is supported. Crossfade is an intentional
-    extension point for a future iteration — do not over-engineer here.
-    """
     if transition != "cut":
         logger.warning("Only transition='cut' is implemented; ignoring %s", transition)
 
@@ -89,9 +107,8 @@ def concatenate_clips(
             "copy",
             str(output_path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=180)
         if result.returncode != 0 or not output_path.exists():
-            # Re-encode fallback if stream copy fails
             cmd = [
                 "ffmpeg",
                 "-y",
@@ -103,11 +120,13 @@ def concatenate_clips(
                 str(list_file),
                 "-c:v",
                 "libx264",
+                "-preset",
+                "ultrafast",
                 "-c:a",
                 "aac",
                 str(output_path),
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=600)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=300)
             if result.returncode != 0:
                 raise RuntimeError(f"Concatenation failed: {result.stderr[-400:]}")
     finally:
@@ -125,14 +144,16 @@ def render_highlight_reel(
     final_path = settings.storage_dir / "uploads" / job_id / "highlight_reel.mp4"
 
     if not highlight_segments:
-        # Nothing selected — copy a short head of the original as fallback
         extract_clip(video_path, 0, min(15.0, 15.0), final_path)
         return str(final_path)
+
+    # Cap clips for speed (client budget)
+    segments = highlight_segments[:5]
 
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"hl_{job_id}_"))
     try:
         clips: list[Path] = []
-        for i, seg in enumerate(highlight_segments):
+        for i, seg in enumerate(segments):
             clip_path = tmp_dir / f"clip_{i:03d}.mp4"
             extract_clip(video_path, float(seg["start"]), float(seg["end"]), clip_path)
             clips.append(clip_path)

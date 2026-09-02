@@ -24,8 +24,18 @@ def _get_embedder():
     return _embedder
 
 
+def _normalize(values: list[float]) -> list[float]:
+    if not values:
+        return []
+    arr = np.asarray(values, dtype=np.float64)
+    mx = float(arr.max())
+    if mx <= 0:
+        return [0.0] * len(values)
+    return [float(v / mx) for v in arr]
+
+
 def compute_audio_energy(audio_path: str | Path, start: float, end: float) -> float:
-    """RMS energy in window; caller should normalize across scenes."""
+    """RMS energy in window (full-quality path)."""
     import librosa
 
     y, sr = librosa.load(str(audio_path), sr=16000, mono=True)
@@ -35,16 +45,6 @@ def compute_audio_energy(audio_path: str | Path, start: float, end: float) -> fl
         return 0.0
     window = y[s:e]
     return float(np.sqrt(np.mean(np.square(window)) + 1e-12))
-
-
-def _normalize(values: list[float]) -> list[float]:
-    if not values:
-        return []
-    arr = np.asarray(values, dtype=np.float64)
-    mx = float(arr.max())
-    if mx <= 0:
-        return [0.0] * len(values)
-    return [float(v / mx) for v in arr]
 
 
 def compute_transcript_salience(chunk: dict, summary: dict) -> float:
@@ -83,7 +83,6 @@ def compute_transcript_salience(chunk: dict, summary: dict) -> float:
         sims = emb_points @ emb_chunk
         salience = float(np.max(sims))
     except Exception:  # noqa: BLE001
-        # Lexical fallback
         words = set(text.lower().split())
         scores = []
         for kp in key_points:
@@ -106,10 +105,28 @@ def compute_highlight_scores(
     audio_path: str | Path,
     summary: dict,
 ) -> list[dict]:
-    energies = [
-        compute_audio_energy(audio_path, s["start"], s["end"]) for s in scenes
-    ]
-    norm_energy = _normalize(energies)
+    settings = get_settings()
+
+    if settings.light_mode:
+        norm_energy = [0.4] * len(scenes)
+    else:
+        try:
+            import librosa
+
+            y, sr = librosa.load(str(audio_path), sr=16000, mono=True)
+            energies = []
+            for s in scenes:
+                a = max(0, int(s["start"] * sr))
+                b = min(len(y), int(s["end"] * sr))
+                if b <= a:
+                    energies.append(0.0)
+                else:
+                    window = y[a:b]
+                    energies.append(float(np.sqrt(np.mean(np.square(window)) + 1e-12)))
+            norm_energy = _normalize(energies)
+        except Exception:  # noqa: BLE001
+            logger.warning("Audio energy failed; using flat scores")
+            norm_energy = [0.4] * len(scenes)
 
     scored: list[dict] = []
     for scene, energy in zip(scenes, norm_energy):
@@ -124,7 +141,13 @@ def compute_highlight_scores(
             salience = 0.0
 
         motion = float(scene.get("motion_score") or 0.0)
-        score = 0.4 * motion + 0.3 * energy + 0.3 * salience
+        energy_f = float(energy)
+        if settings.light_mode and scenes:
+            mid = len(scenes) / 2.0
+            pos = 1.0 - abs(scene["scene_index"] - mid) / max(mid, 1.0)
+            energy_f = 0.3 * energy_f + 0.7 * pos
+
+        score = 0.4 * motion + 0.3 * energy_f + 0.3 * salience
         scored.append(
             {
                 "scene_index": scene["scene_index"],
@@ -132,7 +155,7 @@ def compute_highlight_scores(
                 "end": scene["end"],
                 "score": float(score),
                 "motion_score": motion,
-                "audio_energy": float(energy),
+                "audio_energy": energy_f,
                 "transcript_salience": float(salience),
                 "selected": False,
             }
@@ -159,7 +182,6 @@ def select_highlights(
     for scene in ranked:
         seg_dur = scene["end"] - scene["start"]
         if duration + seg_dur > target_duration_seconds and picked:
-            # Allow slight overrun of one segment if nothing selected yet handled above
             if duration >= target_duration_seconds * 0.85:
                 break
         picked.append(dict(scene, selected=True))

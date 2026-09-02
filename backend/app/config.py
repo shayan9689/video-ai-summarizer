@@ -20,18 +20,20 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
 
-    # Whisper — tiny is safest on Render free (512MB); use base/small locally
+    # Whisper — tiny keeps jobs in the 2–3 min client budget on CPU
     whisper_model_size: str = "tiny"
 
-    # Storage & processing limits
+    # Storage & processing limits (tight for demo UX)
     storage_dir: Path = _DEFAULT_STORAGE
-    max_video_duration_seconds: int = 600
-    max_upload_size_mb: int = 500
-    highlight_target_duration_seconds: int = 60
-    max_concurrent_jobs: int = 2
-    max_summary_input_tokens: int = 50_000
-    # Skip heavy embedding models (needed on Render free tier ~512MB RAM)
+    max_video_duration_seconds: int = 120
+    max_upload_size_mb: int = 80
+    highlight_target_duration_seconds: int = 30
+    max_concurrent_jobs: int = 1
+    max_summary_input_tokens: int = 20_000
+    # Skip embeddings / heavy CV / librosa (required for speed on Render free)
     light_mode: bool = True
+    # Warm Whisper at process start so the first client isn't waiting on download
+    warmup_whisper_on_startup: bool = True
 
     # Database — Supabase Postgres URL preferred; falls back to local SQLite
     database_url: str | None = None
@@ -57,7 +59,7 @@ class Settings(BaseSettings):
             return None
         return v
 
-    @field_validator("light_mode", mode="before")
+    @field_validator("light_mode", "warmup_whisper_on_startup", mode="before")
     @classmethod
     def parse_bool(cls, v):
         if isinstance(v, bool):
@@ -79,7 +81,6 @@ class Settings(BaseSettings):
     def resolved_database_url(self) -> str:
         if self.database_url:
             url = self.database_url.strip()
-            # Supabase / managed Postgres require TLS from cloud hosts like Render
             if url.startswith(("postgres://", "postgresql://")) and "sslmode=" not in url:
                 sep = "&" if "?" in url else "?"
                 url = f"{url}{sep}sslmode=require"
