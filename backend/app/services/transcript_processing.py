@@ -111,6 +111,10 @@ def chunk_by_topic(
             }
         ]
 
+    if get_settings().light_mode:
+        logger.info("LIGHT_MODE: using time-based chunks (no embeddings)")
+        return _time_based_chunks(sentences, max_chunk_seconds)
+
     try:
         model = _get_embedder()
         texts = [s["text"] for s in sentences]

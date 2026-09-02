@@ -65,6 +65,17 @@ def compute_transcript_salience(chunk: dict, summary: dict) -> float:
     if not key_points:
         return min(1.0, 0.2 + bonus)
 
+    if get_settings().light_mode:
+        words = set(text.lower().split())
+        scores = []
+        for kp in key_points:
+            kp_words = set(kp.lower().split())
+            if not kp_words:
+                continue
+            scores.append(len(words & kp_words) / len(kp_words))
+        salience = max(scores) if scores else 0.2
+        return min(1.0, salience + bonus)
+
     try:
         model = _get_embedder()
         emb_chunk = model.encode([text], normalize_embeddings=True)[0]

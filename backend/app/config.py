@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
 
-    # Whisper
-    whisper_model_size: str = "base"
+    # Whisper — tiny is safest on Render free (512MB); use base/small locally
+    whisper_model_size: str = "tiny"
 
     # Storage & processing limits
     storage_dir: Path = _DEFAULT_STORAGE
@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     highlight_target_duration_seconds: int = 60
     max_concurrent_jobs: int = 2
     max_summary_input_tokens: int = 50_000
+    # Skip heavy embedding models (needed on Render free tier ~512MB RAM)
+    light_mode: bool = True
 
     # Database — Supabase Postgres URL preferred; falls back to local SQLite
     database_url: str | None = None
@@ -54,6 +56,17 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip():
             return None
         return v
+
+    @field_validator("light_mode", mode="before")
+    @classmethod
+    def parse_bool(cls, v):
+        if isinstance(v, bool):
+            return v
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return True
+        if isinstance(v, str):
+            return v.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(v)
 
     @field_validator("storage_dir", mode="before")
     @classmethod

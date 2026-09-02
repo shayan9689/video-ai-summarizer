@@ -38,36 +38,47 @@ export default function ProcessingView({ jobId }: { jobId: string }) {
   const [socketError, setSocketError] = useState<string | null>(null)
 
   useEffect(() => {
-    let ws: WebSocket | null = null
     let cancelled = false
+    let ws: WebSocket | null = null
 
-    void getJobStatus(jobId)
-      .then((s) => {
-        if (!cancelled) setJob(s)
-        if (s.status === 'complete') navigate(`/jobs/${jobId}/results`, { replace: true })
-      })
-      .catch(() => setSocketError('Could not load job status'))
-
-    ws = connectJobSocket(jobId, (msg) => {
-      setJob(msg)
-      if (msg.status === 'complete') {
+    const apply = (s: JobStatusResponse) => {
+      if (cancelled) return
+      setJob(s)
+      if (s.status === 'complete') {
         navigate(`/jobs/${jobId}/results`, { replace: true })
       }
-    })
-    ws.onerror = () => setSocketError('Live connection lost — retrying via refresh may help')
-    ws.onclose = () => {
-      /* poll once as fallback */
-      void getJobStatus(jobId).then(setJob).catch(() => undefined)
+    }
+
+    void getJobStatus(jobId)
+      .then(apply)
+      .catch(() => setSocketError('Could not load job status'))
+
+    // Poll every 3s — Render free tier often drops WebSockets during long Whisper runs
+    const poll = window.setInterval(() => {
+      void getJobStatus(jobId)
+        .then(apply)
+        .catch(() => undefined)
+    }, 3000)
+
+    try {
+      ws = connectJobSocket(jobId, apply)
+      ws.onerror = () =>
+        setSocketError('Live updates intermittent — status still refreshes automatically')
+    } catch {
+      setSocketError('WebSocket unavailable — using status polling')
     }
 
     return () => {
       cancelled = true
+      window.clearInterval(poll)
       ws?.close()
     }
   }, [jobId, navigate])
 
   const idx = stageIndex(job?.status ?? 'uploaded')
   const failed = job?.status === 'failed'
+  const transcribingHint =
+    !failed && (job?.status === 'transcribing' || job?.progress_percent === 20)
 
   return (
     <section className="w-full max-w-lg mx-auto px-4">
@@ -118,6 +129,13 @@ export default function ProcessingView({ jobId }: { jobId: string }) {
           transition={{ type: 'spring', stiffness: 80, damping: 20 }}
         />
       </div>
+
+      {transcribingHint && (
+        <p className="mt-6 text-center text-xs text-[var(--muted)]">
+          First run can take several minutes while Whisper downloads/runs on the free server.
+          Keep this tab open.
+        </p>
+      )}
 
       {failed && (
         <div className="mt-8 text-center">
