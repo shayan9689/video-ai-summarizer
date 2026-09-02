@@ -1,4 +1,8 @@
-"""Download remote video URLs (YouTube, Vimeo, direct MP4, etc.) via yt-dlp."""
+"""Download remote video URLs (Vimeo, direct MP4, etc.) via yt-dlp.
+
+YouTube is often blocked on cloud hosts (Render) with bot checks — we detect that
+early and ask the user to upload a file instead.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,15 @@ from app.services.video_ingestion import VideoValidationError
 logger = logging.getLogger(__name__)
 
 _ALLOWED_SCHEMES = {"http", "https"}
+_YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "youtu.be",
+    "www.youtu.be",
+    "youtube-nocookie.com",
+    "www.youtube-nocookie.com",
+}
 
 
 def validate_video_url(url: str) -> str:
@@ -26,24 +39,49 @@ def validate_video_url(url: str) -> str:
     return raw
 
 
+def _host(url: str) -> str:
+    return (urlparse(url).hostname or "").lower()
+
+
+def _is_youtube(url: str) -> bool:
+    host = _host(url)
+    return host in _YOUTUBE_HOSTS or host.endswith(".youtube.com")
+
+
+def _normalize_err(text: str) -> str:
+    return (
+        text.replace("\u2019", "'")
+        .replace("\u2018", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+        .lower()
+    )
+
+
 def _friendly_ytdlp_error(exc: BaseException) -> str:
-    msg = str(exc)
-    lower = msg.lower()
-    if "sign in to confirm" in lower or "not a bot" in lower or "cookies" in lower:
-        return (
-            "YouTube blocked this download (bot check). "
-            "Please upload the video file instead, or try a direct .mp4 link / Vimeo URL. "
-            "On production servers, YouTube often requires browser cookies."
+    msg = _normalize_err(str(exc))
+    if any(
+        token in msg
+        for token in (
+            "sign in to confirm",
+            "not a bot",
+            "cookies",
+            "confirm you're not a bot",
+            "bot",
         )
-    if "private video" in lower or "login required" in lower:
+    ) and ("youtube" in msg or "cookies" in msg or "sign in" in msg):
+        return (
+            "YouTube blocked this cloud download (bot check). "
+            "Please use Upload file instead — download the clip on your phone/PC, then upload it here."
+        )
+    if "private video" in msg or "login required" in msg:
         return "This video is private or requires login. Upload the file instead."
-    if "video unavailable" in lower:
+    if "video unavailable" in msg:
         return "This video is unavailable. Check the link or upload a file."
-    # Keep message short for UI
-    short = msg.split("\n")[0]
-    if len(short) > 180:
-        short = short[:177] + "…"
-    return f"Could not download this link. Try another URL or upload a file. ({short})"
+    return (
+        "Could not download this link. Try a Vimeo or direct .mp4 URL, "
+        "or upload the video file instead."
+    )
 
 
 def download_video_from_url(url: str, dest_dir: Path) -> tuple[Path, str]:
@@ -57,9 +95,18 @@ def download_video_from_url(url: str, dest_dir: Path) -> tuple[Path, str]:
     dest_dir.mkdir(parents=True, exist_ok=True)
     url = validate_video_url(url)
 
-    outtmpl = str(dest_dir / "source.%(ext)s")
+    cookies = os.environ.get("YTDLP_COOKIES_FILE", "").strip()
+    has_cookies = bool(cookies and Path(cookies).is_file())
 
-    # Prefer mobile/TV clients — datacenter IPs often fail on default "web" client
+    # Without cookies, YouTube almost always fails on Render — fail fast with a clear UX
+    if _is_youtube(url) and not has_cookies:
+        raise VideoValidationError(
+            "YouTube links are blocked on this server (bot check). "
+            "Please switch to Upload file and upload the video instead. "
+            "Vimeo and direct .mp4 links still work."
+        )
+
+    outtmpl = str(dest_dir / "source.%(ext)s")
     ydl_opts: dict = {
         "outtmpl": outtmpl,
         "format": "bv*[height<=720]+ba/b[height<=720]/b",
@@ -75,10 +122,7 @@ def download_video_from_url(url: str, dest_dir: Path) -> tuple[Path, str]:
             }
         },
     }
-
-    # Optional: place cookies.txt on the server or set YTDLP_COOKIES_FILE
-    cookies = os.environ.get("YTDLP_COOKIES_FILE", "").strip()
-    if cookies and Path(cookies).is_file():
+    if has_cookies:
         ydl_opts["cookiefile"] = cookies
         logger.info("Using yt-dlp cookies file: %s", cookies)
 
