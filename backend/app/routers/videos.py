@@ -18,6 +18,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ from app.services.scene_analysis import load_scenes
 from app.services.summarization import load_summary
 from app.services.transcript_processing import load_chunks
 from app.services.transcription import load_transcript
+from app.services.url_ingestion import download_video_from_url, validate_video_url
 from app.services.video_ingestion import (
     VideoValidationError,
     extract_audio,
@@ -71,37 +73,19 @@ def _get_job_or_404(db: Session, job_id: str) -> Job:
     return job
 
 
-@router.post("/upload")
-async def upload_video(
+def _ingest_local_video(
+    *,
+    db: Session,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Filename is required")
-
-    try:
-        validate_upload(file.filename, max_duration_seconds=settings.max_video_duration_seconds)
-    except VideoValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    job_id = str(uuid.uuid4())
-    dest_dir = _job_dir(job_id)
-    original_path = dest_dir / file.filename
-
-    try:
-        with original_path.open("wb") as out:
-            shutil.copyfileobj(file.file, out)
-    except OSError as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to save upload: {exc}") from exc
-    finally:
-        await file.close()
-
+    job_id: str,
+    dest_dir: Path,
+    original_path: Path,
+    filename: str,
+) -> dict:
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
     if original_path.stat().st_size < 100:
         original_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=400, detail="Uploaded file is empty or too small")
-
-    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        raise HTTPException(status_code=400, detail="Video file is empty or too small")
     if original_path.stat().st_size > max_bytes:
         shutil.rmtree(dest_dir, ignore_errors=True)
         raise HTTPException(
@@ -111,7 +95,7 @@ async def upload_video(
 
     job = Job(
         id=job_id,
-        filename=file.filename,
+        filename=filename,
         original_path=str(original_path),
         status=JobStatus.uploaded,
         progress_percent=5,
@@ -123,7 +107,7 @@ async def upload_video(
     try:
         meta = get_video_metadata(original_path)
         validate_upload(
-            file.filename,
+            filename,
             duration_seconds=meta["duration"],
             max_duration_seconds=settings.max_video_duration_seconds,
         )
@@ -150,20 +134,96 @@ async def upload_video(
         db.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Upload processing failed for job %s", job_id)
+        logger.exception("Ingestion failed for job %s", job_id)
         job.status = JobStatus.failed
         job.error_message = str(exc)
         db.commit()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     background_tasks.add_task(pipeline_service.run_pipeline, job_id)
-
     return {
         "job_id": job.id,
         "duration_seconds": job.duration_seconds,
         "status": job.status.value,
         "progress_percent": job.progress_percent,
     }
+
+
+class FromUrlBody(BaseModel):
+    url: str = Field(..., min_length=8, description="YouTube / Vimeo / direct video URL")
+
+
+@router.post("/upload")
+async def upload_video(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    try:
+        validate_upload(file.filename, max_duration_seconds=settings.max_video_duration_seconds)
+    except VideoValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    job_id = str(uuid.uuid4())
+    dest_dir = _job_dir(job_id)
+    original_path = dest_dir / file.filename
+
+    try:
+        with original_path.open("wb") as out:
+            shutil.copyfileobj(file.file, out)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save upload: {exc}") from exc
+    finally:
+        await file.close()
+
+    return _ingest_local_video(
+        db=db,
+        background_tasks=background_tasks,
+        job_id=job_id,
+        dest_dir=dest_dir,
+        original_path=original_path,
+        filename=file.filename,
+    )
+
+
+@router.post("/from-url")
+async def upload_from_url(
+    body: FromUrlBody,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    try:
+        url = validate_video_url(body.url)
+    except VideoValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    job_id = str(uuid.uuid4())
+    dest_dir = _job_dir(job_id)
+
+    try:
+        original_path, filename = download_video_from_url(url, dest_dir)
+    except VideoValidationError as exc:
+        shutil.rmtree(dest_dir, ignore_errors=True)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("URL download failed")
+        shutil.rmtree(dest_dir, ignore_errors=True)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not download this link. Try another URL or upload a file. ({exc})",
+        ) from exc
+
+    return _ingest_local_video(
+        db=db,
+        background_tasks=background_tasks,
+        job_id=job_id,
+        dest_dir=dest_dir,
+        original_path=original_path,
+        filename=filename,
+    )
 
 
 @router.get("/{job_id}/status")

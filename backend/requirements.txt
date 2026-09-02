@@ -16,5 +16,6 @@ openai>=1.58,<4
 psycopg2-binary>=2.9,<3
 numpy>=1.26,<3
 soundfile>=0.12,<1
+yt-dlp>=2024.8.0
 pytest>=8.3,<10
 pytest-asyncio>=0.25,<2

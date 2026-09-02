@@ -3,7 +3,7 @@ import { Bell, Box, Search, User } from 'lucide-react'
 
 export default function Navbar() {
   return (
-    <header className="relative z-20 flex items-center justify-between px-6 md:px-10 py-4">
+    <header className="relative z-20 flex items-center justify-between px-4 md:px-8 py-2.5">
       <Link to="/" className="flex items-center gap-3 group">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--violet)] to-[var(--cyan)] text-black shadow-[0_0_20px_rgba(168,85,247,0.4)]">
           <Box className="h-5 w-5" strokeWidth={2.2} />
