@@ -24,7 +24,8 @@ frontend/dist/
 Thumbs.db
 *.log
 
-# Docs / plans (keep code-only repo)
+# Docs / plans
 *.md
+!README.md
 *.pdf
 _plan_extract.txt
