@@ -18,7 +18,6 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -31,7 +30,6 @@ from app.services.scene_analysis import load_scenes
 from app.services.summarization import load_summary
 from app.services.transcript_processing import load_chunks
 from app.services.transcription import load_transcript
-from app.services.url_ingestion import download_video_from_url, validate_video_url
 from app.services.video_ingestion import (
     VideoValidationError,
     extract_audio,
@@ -149,10 +147,6 @@ def _ingest_local_video(
     }
 
 
-class FromUrlBody(BaseModel):
-    url: str = Field(..., min_length=8, description="YouTube / Vimeo / direct video URL")
-
-
 @router.post("/upload")
 async def upload_video(
     background_tasks: BackgroundTasks,
@@ -186,46 +180,6 @@ async def upload_video(
         dest_dir=dest_dir,
         original_path=original_path,
         filename=file.filename,
-    )
-
-
-@router.post("/from-url")
-async def upload_from_url(
-    body: FromUrlBody,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    try:
-        url = validate_video_url(body.url)
-    except VideoValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    job_id = str(uuid.uuid4())
-    dest_dir = _job_dir(job_id)
-
-    try:
-        original_path, filename = download_video_from_url(url, dest_dir)
-    except VideoValidationError as exc:
-        shutil.rmtree(dest_dir, ignore_errors=True)
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("URL download failed")
-        shutil.rmtree(dest_dir, ignore_errors=True)
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Could not download this link. YouTube often blocks cloud servers — "
-                "please upload the video file instead, or try Vimeo / a direct .mp4 URL."
-            ),
-        ) from exc
-
-    return _ingest_local_video(
-        db=db,
-        background_tasks=background_tasks,
-        job_id=job_id,
-        dest_dir=dest_dir,
-        original_path=original_path,
-        filename=filename,
     )
 
 

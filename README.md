@@ -1,6 +1,6 @@
 # 🎬 NEURAFLUX — AI Video Summarizer & Highlight Generator
 
-> **Upload a file** or **paste a video link** → get a written summary + an auto-cut highlight reel.  
+> **Upload a video** → get a written summary + an auto-cut highlight reel.  
 > Multi-modal AI pipeline: speech, scenes, LLM reasoning, and FFmpeg rendering in one flow.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -15,7 +15,7 @@
 
 | Step | Capability |
 |------|------------|
-| 📥 **Ingest** | **Upload** MP4/MOV/MKV **or paste** a YouTube / Vimeo / direct video URL |
+| 📥 **Ingest** | Upload MP4 / MOV / MKV |
 | 🎧 **Audio** | Extracts clean 16 kHz mono WAV with FFmpeg |
 | 🗣️ **Speech** | Transcribes with **faster-whisper** (timestamps) |
 | 🧩 **Structure** | Chunks transcript + scene windows |
@@ -31,9 +31,7 @@ Built as a **portfolio Generative AI / multi-modal** project — real media proc
 ## 🏗️ Architecture
 
 ```
-NEURAFLUX UI (React)
-   ├─ Upload file
-   └─ Paste link (yt-dlp)
+NEURAFLUX UI (React) — file upload
           │
           ▼
 FastAPI job pipeline
@@ -61,7 +59,7 @@ Results: summary · scene timeline · downloadable reel
 | 🖥️ **Frontend** | React · Vite · TypeScript · Tailwind · Framer Motion · Lucide |
 | ⚙️ **Backend** | Python · FastAPI · SQLAlchemy · Background pipeline |
 | 🤖 **AI / ML** | faster-whisper · optional sentence-transformers · Anthropic / OpenAI |
-| 🎥 **Media** | FFmpeg · **yt-dlp** (URL ingest) · OpenCV / PySceneDetect (full mode) |
+| 🎥 **Media** | FFmpeg · OpenCV / PySceneDetect (full mode) |
 | 🗄️ **Database** | Supabase Postgres (`DATABASE_URL`) · SQLite locally |
 | ☁️ **Deploy** | **Vercel** (UI) · **Render** Docker (API + FFmpeg) |
 
@@ -187,10 +185,10 @@ pytest -m "not slow" -q
 
 ## 🎯 Product notes for demos
 
-- **Two ways in:** upload a file **or** paste a YouTube / Vimeo / direct video link  
-- Use clips **under ~2 minutes** with clear speech  
+- Upload a short **MP4 / MOV / MKV** with clear speech  
+- Use clips **under ~2 minutes**  
 - First job after a cold start may be slower (model warm-up) — ping `/health` before a live demo  
-- UI brand: **NEURAFLUX** — compact synthesis dashboard (fits one screen) with live progress  
+- UI brand: **NEURAFLUX** — compact synthesis dashboard with live progress  
 
 ---
 

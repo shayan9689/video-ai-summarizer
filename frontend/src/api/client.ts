@@ -80,22 +80,6 @@ export function uploadVideo(
   })
 }
 
-export async function submitVideoUrl(
-  url: string,
-): Promise<{ job_id: string; duration_seconds: number; status: string }> {
-  const res = await fetch(`${API_BASE}/api/videos/from-url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const detail = data.detail
-    throw new Error(typeof detail === 'string' ? detail : 'Could not process this link')
-  }
-  return data
-}
-
 export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {
   const res = await fetch(`${API_BASE}/api/videos/${jobId}/status`)
   if (!res.ok) throw new Error('Failed to fetch status')
