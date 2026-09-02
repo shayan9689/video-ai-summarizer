@@ -82,7 +82,6 @@ video-ai-summarizer/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/                # NEURAFLUX React app
-├── docker-compose.yml
 └── README.md
 ```
 
