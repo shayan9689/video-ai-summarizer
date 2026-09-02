@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Storage / artifacts
+backend/storage/
+backend/uploads/
+*.db
+*.wav
+*.mp4
+!backend/tests/fixtures/sample.mp4
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Docs / plans (keep code-only repo)
+*.md
+*.pdf
+_plan_extract.txt

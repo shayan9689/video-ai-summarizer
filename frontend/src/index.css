@@ -1,0 +1,54 @@
+/* Palette: charcoal base + electric teal accent (media/video product — not indigo defaults) */
+@import "tailwindcss";
+
+:root {
+  --bg: #0c1117;
+  --bg-elevated: #141b24;
+  --surface: #1a2330;
+  --text: #c5d0dc;
+  --text-h: #f0f4f8;
+  --muted: #7a8a9c;
+  --accent: #2dd4bf;
+  --accent-dim: #14b8a6;
+  --danger: #f87171;
+  --border: #243041;
+  --font-sans: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Outfit", "Segoe UI", system-ui, sans-serif;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: local("DM Sans");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "DM Sans", var(--font-sans);
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(20, 184, 166, 0.06), transparent),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Outfit", var(--font-display);
+  color: var(--text-h);
+  font-weight: 600;
+}
